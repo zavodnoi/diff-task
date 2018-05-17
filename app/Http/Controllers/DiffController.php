@@ -61,35 +61,47 @@ class DiffController extends Controller
         $original = preg_replace('/\r/', '', $original);
         $original = explode(PHP_EOL, $original);
         $result['original'] = $original;
+        uasort($original, $by_len);
 
         $corrected = preg_replace('/\r/', '', $corrected);
         $corrected = explode(PHP_EOL, $corrected);
-
         $result['corrected'] = $corrected;
+        uasort($corrected, $by_len);
 
         $result['count'] = max(count($corrected), count($original));
         $used_i = [];
         $used_j = [];
 
-        for ($i = 0; $i < count($original); $i++) {
-            for ($j = 0; $j < count($corrected); $j++) {
+        $pattern = '/i+|I+|a+|Ä+|ä+|å+|Å+|A+|e+|E+|o+|O+|y+|Y+|u+|U+|ö+|Ö+|\.+|\!+|,+|\s+|[0-9]+/';
+
+        foreach ($original as $i => $str1){
+            foreach ($corrected as $j => $str2){
                 if (!in_array($j, $used_j)) {
-                    if (strcmp($original[$i], $corrected[$j]) == 0) {
+                    if (strcmp($str1, $str2) == 0) {
                         $result['unchanged'][$i] = $j;
                         $used_i[] = $i;
                         $used_j[] = $j;
                         break;
+                    }else{
+                        $clear_str1 = preg_replace($pattern, '', $str1);
+                        $clear_str2 = preg_replace($pattern, '', $str2);
+                        if (strcmp($clear_str1, $clear_str2) == 0) {
+                            $result['unchanged'][$i] = $j;
+                            $used_i[] = $i;
+                            $used_j[] = $j;
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        for ($i = 0; $i < count($original); $i++) {
+        foreach ($original as $i => $str1){
             if (!in_array($i, $used_i)) {
                 $tmp_l = 0;
-                for ($j = 0; $j < count($corrected); $j++) {
+                foreach ($corrected as $j => $str2){
                     if (!in_array($j, $used_j)) {
-                        if (($l = $this->lcs_length($original[$i], $corrected[$j])) > $tmp_l) {
+                        if (($l = $this->lcs_length($str1, $str2)) > $tmp_l) {
                             $tmp_l = $l;
                             $result['changed'][$i] = $j;
                         }
