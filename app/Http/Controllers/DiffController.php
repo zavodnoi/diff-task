@@ -54,62 +54,48 @@ class DiffController extends Controller
             return $result;
         }
 
-        $by_len = function ($v1, $v2) {
-            return strlen($v1) > strlen($v2) ? -1 : 1;
-        };
-
-        $original = preg_replace('/\r/', '', $original);
-        $original = explode(PHP_EOL, $original);
+        preg_match_all("/.*?(\.|\?|\!|$)\s*\r?\n?/", $original, $original);
+        $original = array_shift($original);
         $result['original'] = $original;
-        uasort($original, $by_len);
+        $original = array_map('trim', $original);
 
-        $corrected = preg_replace('/\r/', '', $corrected);
-        $corrected = explode(PHP_EOL, $corrected);
+        preg_match_all("/.*?(\.|\?|\!|$)\s*\r?\n?/", $corrected, $corrected);
+        $corrected = array_shift($corrected);
         $result['corrected'] = $corrected;
-        uasort($corrected, $by_len);
+        $corrected = array_map('trim', $corrected);
 
         $result['count'] = max(count($corrected), count($original));
+
         $used_i = [];
         $used_j = [];
 
-        $pattern = '/i+|I+|a+|Ä+|ä+|å+|Å+|A+|e+|E+|o+|O+|y+|Y+|u+|U+|ö+|Ö+|\.+|\!+|,+|\s+|[0-9]+/';
-
-        foreach ($original as $i => $str1){
-            foreach ($corrected as $j => $str2){
+        foreach ($original as $i => $str1) {
+            foreach ($corrected as $j => $str2) {
                 if (!in_array($j, $used_j)) {
                     if (strcmp($str1, $str2) == 0) {
                         $result['unchanged'][$i] = $j;
                         $used_i[] = $i;
                         $used_j[] = $j;
                         break;
-                    }else{
-                        $clear_str1 = preg_replace($pattern, '', $str1);
-                        $clear_str2 = preg_replace($pattern, '', $str2);
-                        if (strcmp($clear_str1, $clear_str2) == 0) {
-                            $result['unchanged'][$i] = $j;
-                            $used_i[] = $i;
-                            $used_j[] = $j;
-                            break;
-                        }
                     }
                 }
             }
         }
-
-        foreach ($original as $i => $str1){
+        foreach ($original as $i => $str1) {
             if (!in_array($i, $used_i)) {
-                $tmp_l = 0;
-                foreach ($corrected as $j => $str2){
+                $tmp_l = 0.7;
+                foreach ($corrected as $j => $str2) {
                     if (!in_array($j, $used_j)) {
-                        if (($l = $this->lcs_length($str1, $str2)) > $tmp_l) {
+                        $l = $this->lcs_length($str1, $str2);
+                        if ($l > $tmp_l) {
                             $tmp_l = $l;
                             $result['changed'][$i] = $j;
                         }
                     }
                 }
-                if (isset($result['changed'][$i])) {
-                    $used_j[] = $result['changed'][$i];
+                if(isset($result['changed'][$i])){
                     $used_i[] = $i;
+                    $used_j[] = $result['changed'][$i];
                 }
             }
         }
@@ -123,9 +109,6 @@ class DiffController extends Controller
 
     private function lcs_length($str1, $str2)
     {
-        $pattern = '/i+|I+|a+|Ä+|ä+|å+|Å+|A+|e+|E+|o+|O+|y+|Y+|u+|U+|ö+|Ö+|\.+|\!+|,+|\s+|[0-9]+/';
-        $str1 = preg_replace($pattern, '', $str1);
-        $str2 = preg_replace($pattern, '', $str2);
         $strlen1 = strlen($str1);
         $strlen2 = strlen($str2);
 
